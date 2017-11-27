@@ -1,6 +1,6 @@
 ---
 title: "STAT/MATH 495: Problem Set 10"
-author: "WRITE YOUR NAME(S) HERE"
+author: "Brenna Sullivan"
 date: "2017-11-28"
 output:
   html_document:
@@ -30,6 +30,8 @@ Please indicate who you collaborated with on this assignment:
 library(tidyverse)
 library(broom)
 library(glmnet)
+library(dplyr)
+
 
 train <- read_csv("data/train.csv")
 test <- read_csv("data/test.csv")
@@ -57,9 +59,81 @@ predictor_matrix_test <- model.matrix(model_formula, data = test)[, -1]
 # Do work and create submission files:
 
 ```{r}
-
+get_LASSO_coefficients <- function(LASSO_fit){
+  coeff_values <- LASSO_fit %>% 
+    broom::tidy() %>% 
+    as_tibble() %>% 
+    dplyr::select(-c(step, dev.ratio)) %>% 
+    tidyr::complete(lambda, nesting(term), fill = list(estimate = 0)) %>% 
+    arrange(desc(lambda)) %>% 
+    dplyr::select(term, estimate, lambda)
+  return(coeff_values)
+}
 ```
 
+
+```{r}
+lambda_inputs <- 10^seq(-2, 10, length = 100)
+LASSO_fit <- glmnet(x=predictor_matrix_train, y=train$log_price_doc, alpha = 1, lambda = lambda_inputs)
+LASSO_coefficients <- get_LASSO_coefficients(LASSO_fit)
+```
+
+```{r, include=FALSE}
+ggplot(LASSO_coefficients, aes(x=lambda, y=estimate, col=term)) +
+  geom_line() +
+  labs(x="lambda", y="beta-hat coefficient estimate")
+
+plot_LASSO_coefficients <- LASSO_coefficients %>% 
+  filter(term != "(Intercept)") %>% 
+  ggplot(aes(x=lambda, y=estimate, col=term)) +
+  geom_line() +
+  scale_x_log10() +
+  labs(x="lambda (log10-scale)", y="beta-hat coefficient estimate",
+       title="LASSO regularized coefficient for each lambda value")
+plot_LASSO_coefficients
+```
+
+```{r, include=FALSE}
+LASSO_CV <- cv.glmnet(x=predictor_matrix_train, y=train$log_price_doc, alpha=1, lambda=lambda_inputs)
+lambda_star <- LASSO_CV$lambda.min
+lambda_star_1SE <- LASSO_CV$lambda.1se
+
+plot(LASSO_CV)
+abline(v=log(lambda_star), col="red")
+abline(v=log(lambda_star_1SE), col="blue")
+
+plot_LASSO_coefficients <- plot_LASSO_coefficients +
+  geom_vline(xintercept = lambda_star, col="red", alpha=0.4, linetype="dashed") +
+  geom_vline(xintercept = lambda_star_1SE, col="blue", alpha=0.4, linetype="dashed")
+plot_LASSO_coefficients
+```
+
+```{r}
+plot_LASSO_coefficients +
+  coord_cartesian(xlim= c(.1, .8), ylim=c(-.1, .1))
+```
+
+
+```{r}
+y_hat <- predict(LASSO_fit, newx=predictor_matrix_test, s=lambda_star_1SE) %>% 
+  as.vector()
+hist(y_hat)
+
+test$log_price_doc <- y_hat
+test$price_doc <- exp(y_hat)
+
+submission <- data.frame(test$id, test$price_doc)
+write.csv(submission, "kaggle submission1.csv")
+```
+
+```{r}
+#training score for LASSO CV
+y_hat_train <- predict(LASSO_fit, newx=predictor_matrix_train, s=lambda_star_1SE) %>% 
+  as.vector()
+
+RMSE <- sqrt(mean(((train$log_price_doc) - (y_hat_train))^2))
+RMSE
+```
 
 
 
@@ -73,4 +147,4 @@ in these cells:
 Method                | Training Score  | Kaggle Score
 --------------------- | -------------   | -------------
 lm                    |                 |  
-LASSO crossvalidated  |                 |  
+LASSO crossvalidated  |       .54162          |  .45162
