@@ -58,6 +58,8 @@ predictor_matrix_test <- model.matrix(model_formula, data = test)[, -1]
 
 # Do work and create submission files:
 
+###LASSO
+
 ```{r}
 get_LASSO_coefficients <- function(LASSO_fit){
   coeff_values <- LASSO_fit %>% 
@@ -135,6 +137,21 @@ RMSE <- sqrt(mean(((train$log_price_doc) - (y_hat_train))^2))
 RMSE
 ```
 
+###Linear Model
+
+```{r}
+lm <- lm(model_formula, data = train)
+
+y_hat_lm_train <- predict(lm, newdata = train)
+
+RMSElm <- sqrt(mean(train$log_price_doc - y_hat_lm_train)^2)
+
+
+y_hat_lm <- predict(lm, newdata = test)
+pricedoclm <- exp(y_hat_lm)
+submission <- data.frame(test$id, pricedoclm)
+write.csv(submission, "kaggle submission2.csv")
+```
 
 
 
@@ -144,7 +161,7 @@ Using the "scoring mechanism" for the Russian Housing Kaggle competition, fill
 in these cells:
 
 
-Method                | Training Score  | Kaggle Score
---------------------- | -------------   | -------------
-lm                    |                 |  
-LASSO crossvalidated  |       .54162          |  .45162
+Method                | Training Score      | Kaggle Score
+--------------------- | -------------       | -------------
+lm                    |  1.8256e-10         |  2.63413
+LASSO crossvalidated  |  .54162             |  .45162

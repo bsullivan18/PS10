@@ -257,6 +257,8 @@ predictor_matrix_test &lt;- model.matrix(model_formula, data = test)[, -1]</code
 </div>
 <div id="do-work-and-create-submission-files" class="section level1">
 <h1>Do work and create submission files:</h1>
+<div id="lasso" class="section level3">
+<h3>LASSO</h3>
 <pre class="r"><code>get_LASSO_coefficients &lt;- function(LASSO_fit){
   coeff_values &lt;- LASSO_fit %&gt;% 
     broom::tidy() %&gt;% 
@@ -290,6 +292,21 @@ RMSE &lt;- sqrt(mean(((train$log_price_doc) - (y_hat_train))^2))
 RMSE</code></pre>
 <pre><code>## [1] 0.5416207</code></pre>
 </div>
+<div id="linear-model" class="section level3">
+<h3>Linear Model</h3>
+<pre class="r"><code>lm &lt;- lm(model_formula, data = train)
+
+y_hat_lm_train &lt;- predict(lm, newdata = train)
+
+RMSElm &lt;- sqrt(mean(train$log_price_doc - y_hat_lm_train)^2)
+
+
+y_hat_lm &lt;- predict(lm, newdata = test)
+pricedoclm &lt;- exp(y_hat_lm)
+submission &lt;- data.frame(test$id, pricedoclm)
+write.csv(submission, &quot;kaggle submission2.csv&quot;)</code></pre>
+</div>
+</div>
 <div id="scoreboard" class="section level1">
 <h1>Scoreboard</h1>
 <p>Using the “scoring mechanism” for the Russian Housing Kaggle competition, fill in these cells:</p>
@@ -304,8 +321,8 @@ RMSE</code></pre>
 <tbody>
 <tr class="odd">
 <td>lm</td>
-<td></td>
-<td></td>
+<td>1.8256e-10</td>
+<td>2.63413</td>
 </tr>
 <tr class="even">
 <td>LASSO crossvalidated</td>
